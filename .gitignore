@@ -32,4 +32,4 @@ wheels/
 *.swp
 .DS_Store
 .cursor
-.technical-report.tex
+technical-report.tex
