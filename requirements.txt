@@ -1,0 +1,15 @@
+numpy>=1.20.0
+scikit-learn>=0.24.0
+sentence-transformers>=2.2.0
+matplotlib>=3.4.0
+networkx>=2.5.0
+tqdm>=4.60.0
+plotly>=5.0.0
+packaging>=21.0
+
+# Optional dependencies for enhanced visualization 
+# Uncomment if you need additional visualization features
+# pygraphviz>=1.7.0  # For hierarchical layouts
+# kaleido>=0.2.1     # For static image export from plotly 
+# pillow>=8.0.0      # For image processing
+pydot>=1.4.2       # For DOT file export 
