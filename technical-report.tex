@@ -31,9 +31,8 @@
 
 \author{
     \IEEEauthorblockN{M. Soleymani}
-    \IEEEauthorblockA{Department of Computer Science\\
-    Advanced AI Research\\
-    msoleymani@example.edu}
+    \IEEEauthorblockA{ai-noos\\
+    https://github.com/ai-noos/elastic-dicts}
 }
 
 \maketitle
@@ -333,78 +332,7 @@ The restructuring example specifically tested the dictionary's ability to reorga
 \label{fig:restructuring}
 \end{figure}
 
-\subsection{Visualization Enhancements}
-
-A critical aspect of the Elastic Dictionary is the ability to visualize and explore the growing semantic tree. To facilitate this, we implemented comprehensive enhancements to our visualization capabilities. Figure \ref{fig:viz_comparison} shows a comparison of different visualization modes.
-
-\begin{figure}[ht]
-\centering
-\begin{subfigure}[b]{0.45\textwidth}
-  \includegraphics[width=\textwidth]{figs/viz_spring.pdf}
-  \caption{Force-directed layout}
-  \label{fig:viz_spring}
-\end{subfigure}
-\hfill
-\begin{subfigure}[b]{0.45\textwidth}
-  \includegraphics[width=\textwidth]{figs/viz_hierarchical.pdf}
-  \caption{Hierarchical layout}
-  \label{fig:viz_hierarchical}
-\end{subfigure}
-
-\medskip
-\begin{subfigure}[b]{0.45\textwidth}
-  \includegraphics[width=\textwidth]{figs/viz_3d.pdf}
-  \caption{3D interactive visualization}
-  \label{fig:viz_3d}
-\end{subfigure}
-\hfill
-\begin{subfigure}[b]{0.45\textwidth}
-  \includegraphics[width=\textwidth]{figs/viz_filtered.pdf}
-  \caption{Filtered view showing only categories}
-  \label{fig:viz_filtered}
-\end{subfigure}
-\caption{Comparison of different visualization modes for the same dictionary structure.}
-\label{fig:viz_comparison}
-\end{figure}
-
-The enhanced visualizations include the following features:
-
-\begin{enumerate}
-    \item \textbf{Multiple layout algorithms}: Users can choose between force-directed (spring), hierarchical, circular, and Kamada-Kawai layouts to best represent their data.
-    
-    \item \textbf{Node sizing based on metrics}: Nodes can be sized according to different metrics such as the number of children (indicating importance) or depth in the tree (indicating specificity).
-    
-    \item \textbf{Interactive filtering}: Users can dynamically filter the visualization to focus on specific node types (root, categories, or items) to reduce visual complexity.
-    
-    \item \textbf{Focus capability}: The visualization can be centered on a specific node and its neighbors, allowing users to explore subsections of large trees.
-    
-    \item \textbf{Enhanced information display}: Hovering over nodes reveals detailed information, including node type, depth, and number of children.
-    
-    \item \textbf{Export options}: Visualizations can be exported in various formats (PNG, SVG, PDF) for inclusion in reports or presentations.
-    
-    \item \textbf{Graph structure export}: The entire graph structure can be exported in standard formats (GraphML, GEXF, JSON, DOT) for analysis in specialized graph tools.
-\end{enumerate}
-
-Table \ref{tab:visualization_comparison} compares the features of the basic and enhanced visualization methods.
-
-\begin{table}[ht]
-\centering
-\caption{Comparison of basic and enhanced visualization features}
-\label{tab:visualization_comparison}
-\begin{tabular}{@{}lll@{}}
-\toprule
-\textbf{Feature} & \textbf{Basic Visualization} & \textbf{Enhanced Visualization} \\
-\midrule
-Layout options & Spring only & Multiple algorithms \\
-Dimensionality & 2D only & 2D and 3D \\
-Node differentiation & None & Color and size coding \\
-Interactivity & None & Zoom, pan, filter, focus \\
-Information display & Node name only & Detailed hover information \\
-Customization & Minimal & Multiple parameters \\
-Export options & None & Multiple formats \\
-\bottomrule
-\end{tabular}
-\end{table}
+The results show that as more items were added, the clustering algorithm successfully identified increasingly fine-grained categories. The dictionary was able to automatically organize items from multiple domains (technology, animals, food, weather) into their appropriate semantic categories.
 
 \subsection{Performance and Compatibility}
 
