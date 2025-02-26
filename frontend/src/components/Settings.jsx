@@ -148,24 +148,24 @@ const Settings = ({ onReset, isLoading, setIsLoading }) => {
           {searchResults.length > 0 && (
             <div className="mb-4">
               <h4 className="text-lg font-medium mb-2">Search Results</h4>
-              <div className="bg-gray-50 border border-gray-200 rounded-md max-h-60 overflow-y-auto">
-                <ul className="divide-y divide-gray-200">
+              <div className="bg-white border border-gray-300 rounded-md max-h-60 overflow-y-auto shadow-sm">
+                <ul className="divide-y divide-gray-300">
                   {searchResults.map((result) => (
                     <li 
                       key={result.key}
-                      className={`p-3 cursor-pointer hover:bg-gray-100 ${
-                        selectedNode && selectedNode.key === result.key ? 'bg-indigo-50' : ''
+                      className={`p-3 cursor-pointer hover:bg-indigo-50 ${
+                        selectedNode && selectedNode.key === result.key ? 'bg-indigo-100' : ''
                       }`}
                       onClick={() => handleNodeSelect(result)}
                     >
                       <div className="flex justify-between">
-                        <span className="font-medium">{result.key}</span>
-                        <span className="text-gray-500">
+                        <span className="font-medium text-gray-900">{result.key}</span>
+                        <span className="text-indigo-700 font-medium">
                           Similarity: {(result.similarity * 100).toFixed(1)}%
                         </span>
                       </div>
                       {result.value && result.value !== result.key && (
-                        <p className="text-sm text-gray-600 mt-1">{result.value}</p>
+                        <p className="text-sm text-gray-800 mt-1">{result.value}</p>
                       )}
                     </li>
                   ))}
@@ -175,7 +175,7 @@ const Settings = ({ onReset, isLoading, setIsLoading }) => {
           )}
           
           {selectedNode && !showDeleteConfirmation && (
-            <div className="mb-4 p-4 bg-indigo-50 border border-indigo-100 rounded-md">
+            <div className="mb-4 p-4 bg-indigo-100 border border-indigo-200 rounded-md">
               <h4 className="text-lg font-medium mb-2">Selected Node</h4>
               <p><span className="font-medium">Key:</span> {selectedNode.key}</p>
               {selectedNode.value && selectedNode.value !== selectedNode.key && (

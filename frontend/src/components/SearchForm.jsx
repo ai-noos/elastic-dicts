@@ -59,16 +59,16 @@ const SearchForm = ({ onSearch, isLoading, searchResults }) => {
       {searchResults && searchResults.results && searchResults.results.length > 0 && (
         <div>
           <h3 className="text-xl font-semibold mb-2">Search Results</h3>
-          <div className="bg-gray-100 p-4 rounded-md">
+          <div className="bg-white p-4 rounded-md border border-gray-300 shadow-sm">
             <ul className="divide-y divide-gray-300">
               {searchResults.results.map((result, index) => (
-                <li key={index} className="py-2">
+                <li key={index} className="py-3">
                   <div className="flex justify-between">
-                    <span className="font-medium">{result.key}</span>
-                    <span className="text-gray-600">Similarity: {(result.similarity * 100).toFixed(1)}%</span>
+                    <span className="font-medium text-gray-900">{result.key}</span>
+                    <span className="text-indigo-700 font-medium">Similarity: {(result.similarity * 100).toFixed(1)}%</span>
                   </div>
                   {result.value && result.value !== result.key && (
-                    <p className="text-sm text-gray-600 mt-1">{result.value}</p>
+                    <p className="text-sm text-gray-800 mt-1">{result.value}</p>
                   )}
                 </li>
               ))}
@@ -78,8 +78,8 @@ const SearchForm = ({ onSearch, isLoading, searchResults }) => {
       )}
       
       {searchResults && searchResults.results && searchResults.results.length === 0 && (
-        <div className="text-center p-4 bg-gray-100 rounded-md">
-          <p>No results found for "{query}"</p>
+        <div className="text-center p-4 bg-white border border-gray-300 rounded-md">
+          <p className="text-gray-800">No results found for "{query}"</p>
         </div>
       )}
     </div>
