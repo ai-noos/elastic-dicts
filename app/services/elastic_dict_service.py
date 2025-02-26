@@ -122,40 +122,62 @@ class ElasticDictionaryService:
         # Get the node to delete
         node_to_delete = self.dictionary.all_nodes[node_key]
         
-        # Get the parent node
-        parent_node = node_to_delete.parent
+        # Store all nodes except the one to be deleted
+        preserved_nodes = {}
+        for key, node in self.dictionary.all_nodes.items():
+            if key != node_key:
+                preserved_nodes[key] = node
         
-        # If the node has children, we need to reorganize them
-        if node_to_delete.children:
-            # For each child, find a new parent
-            for child in list(node_to_delete.children):  # Create a copy of the list to avoid modification issues
-                # Remove the child from the current parent
-                node_to_delete.remove_child(child)
+        # Save the embeddings and values of all nodes
+        node_data = {}
+        for key, node in preserved_nodes.items():
+            if key != self.dictionary.root.key:  # Skip the root
+                node_data[key] = {
+                    'value': node.value,
+                    'embedding': node.embedding,
+                    'is_category_node': node.is_category_node
+                }
+        
+        # Create a new dictionary with the same model
+        new_dictionary = ElasticDictionary(model_name=settings.DICTIONARY_MODEL)
+        
+        # Copy configuration from the old dictionary
+        new_dictionary.restructure_threshold = self.dictionary.restructure_threshold
+        new_dictionary.min_similarity_threshold = self.dictionary.min_similarity_threshold
+        new_dictionary.max_similarity_threshold = self.dictionary.max_similarity_threshold
+        new_dictionary.enable_auto_restructure = self.dictionary.enable_auto_restructure
+        new_dictionary.min_cluster_size = self.dictionary.min_cluster_size
+        
+        # First, add all category nodes
+        for key, data in node_data.items():
+            if data['is_category_node']:
+                # Create the category node
+                new_node = Node(key=key, value=data['value'], embedding=data['embedding'])
+                new_node.is_category_node = True
+                new_dictionary.all_nodes[key] = new_node
+        
+        # Then, add all regular nodes
+        for key, data in node_data.items():
+            if not data['is_category_node']:
+                # Create the node
+                new_node = Node(key=key, value=data['value'], embedding=data['embedding'])
+                new_dictionary.all_nodes[key] = new_node
                 
-                # Find the best placement for the child
-                if child.embedding is not None:
-                    new_parent, _ = self.dictionary._find_best_placement(child.embedding)
-                    
-                    # If the best placement is the node we're deleting, use its parent instead
-                    if new_parent.key == node_key:
-                        new_parent = parent_node
-                    
-                    # Add the child to the new parent
-                    new_parent.add_child(child)
+                # Find the best placement for this node
+                if data['embedding'] is not None:
+                    parent_node, _ = new_dictionary._find_best_placement(data['embedding'])
+                    parent_node.add_child(new_node)
                 else:
-                    # If the child has no embedding, add it to the parent of the deleted node
-                    parent_node.add_child(child)
+                    # If no embedding, add to root
+                    new_dictionary.root.add_child(new_node)
         
-        # Remove the node from its parent
-        parent_node.remove_child(node_to_delete)
-        
-        # Remove the node from the all_nodes dictionary
-        del self.dictionary.all_nodes[node_key]
+        # Replace the old dictionary with the new one
+        self.dictionary = new_dictionary
         
         # Save the updated dictionary
         self._save_dictionary()
         
-        # Consider restructuring the tree
+        # Force restructuring to optimize the tree
         if self.dictionary.enable_auto_restructure:
             self.dictionary._consider_restructuring()
             self._save_dictionary()
