@@ -84,6 +84,84 @@ class ElasticDictionaryService:
             graph_data=graph_data
         )
     
+    def reset_dictionary(self) -> None:
+        """Reset the dictionary to its initial state"""
+        # Create a new dictionary instance
+        self.dictionary = ElasticDictionary(model_name=settings.DICTIONARY_MODEL)
+        print(f"Dictionary reset with model {settings.DICTIONARY_MODEL}")
+        
+        # Remove the saved dictionary file if it exists
+        if os.path.exists(settings.DICTIONARY_SAVE_PATH):
+            try:
+                os.remove(settings.DICTIONARY_SAVE_PATH)
+                print(f"Removed saved dictionary file: {settings.DICTIONARY_SAVE_PATH}")
+            except Exception as e:
+                print(f"Error removing saved dictionary file: {e}")
+        
+        # Save the empty dictionary
+        self._save_dictionary()
+    
+    def delete_node(self, node_key: str) -> bool:
+        """
+        Delete a node from the dictionary and reorganize the tree.
+        
+        Args:
+            node_key: The key of the node to delete
+            
+        Returns:
+            bool: True if the node was deleted, False otherwise
+        """
+        # Check if the node exists
+        if node_key not in self.dictionary.all_nodes:
+            return False
+        
+        # Cannot delete the root node
+        if node_key == self.dictionary.root.key:
+            return False
+        
+        # Get the node to delete
+        node_to_delete = self.dictionary.all_nodes[node_key]
+        
+        # Get the parent node
+        parent_node = node_to_delete.parent
+        
+        # If the node has children, we need to reorganize them
+        if node_to_delete.children:
+            # For each child, find a new parent
+            for child in list(node_to_delete.children):  # Create a copy of the list to avoid modification issues
+                # Remove the child from the current parent
+                node_to_delete.remove_child(child)
+                
+                # Find the best placement for the child
+                if child.embedding is not None:
+                    new_parent, _ = self.dictionary._find_best_placement(child.embedding)
+                    
+                    # If the best placement is the node we're deleting, use its parent instead
+                    if new_parent.key == node_key:
+                        new_parent = parent_node
+                    
+                    # Add the child to the new parent
+                    new_parent.add_child(child)
+                else:
+                    # If the child has no embedding, add it to the parent of the deleted node
+                    parent_node.add_child(child)
+        
+        # Remove the node from its parent
+        parent_node.remove_child(node_to_delete)
+        
+        # Remove the node from the all_nodes dictionary
+        del self.dictionary.all_nodes[node_key]
+        
+        # Save the updated dictionary
+        self._save_dictionary()
+        
+        # Consider restructuring the tree
+        if self.dictionary.enable_auto_restructure:
+            self.dictionary._consider_restructuring()
+            self._save_dictionary()
+        
+        return True
+    
     def _generate_graph_data(self) -> GraphDataModel:
         """Generate graph data for visualization"""
         G = nx.DiGraph()

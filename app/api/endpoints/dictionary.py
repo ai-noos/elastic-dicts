@@ -7,7 +7,7 @@ from typing import List
 from app.services.elastic_dict_service import elastic_dict_service
 from app.models.elastic_dict_models import (
     NodeModel, AddItemRequest, AddBatchRequest, AddParagraphRequest,
-    SearchRequest, SearchResponse, DictionaryStateResponse
+    SearchRequest, SearchResponse, DictionaryStateResponse, DeleteNodeRequest
 )
 
 
@@ -76,4 +76,33 @@ async def get_state():
     try:
         return elastic_dict_service.get_dictionary_state()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting state: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Error getting state: {str(e)}")
+
+
+@router.post("/delete-node", response_model=dict, summary="Delete a node from the dictionary")
+async def delete_node(request: DeleteNodeRequest):
+    """
+    Delete a node from the elastic dictionary and reorganize the tree.
+    
+    - **node_key**: The key of the node to delete
+    """
+    try:
+        success = elastic_dict_service.delete_node(request.node_key)
+        if success:
+            return {"status": "success", "message": f"Node '{request.node_key}' deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail=f"Node '{request.node_key}' not found or cannot be deleted")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting node: {str(e)}")
+
+
+@router.post("/reset", response_model=dict, summary="Reset the dictionary")
+async def reset_dictionary():
+    """
+    Reset the elastic dictionary, removing all items and starting fresh.
+    """
+    try:
+        elastic_dict_service.reset_dictionary()
+        return {"status": "success", "message": "Dictionary reset successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error resetting dictionary: {str(e)}") 

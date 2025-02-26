@@ -1,6 +1,6 @@
 # Elastic Dictionary Visualization Improvements
 
-This document describes the enhanced visualization capabilities for the Elastic Dictionary project.
+This document describes the enhanced visualization capabilities for the Elastic Dictionary project, including both the Python library and the web interface.
 
 ## Overview
 
@@ -11,8 +11,11 @@ The visualization system for the Elastic Dictionary has been significantly impro
 3. Support multiple layout algorithms for different analysis needs
 4. Enhance interactive exploration capabilities
 5. Improve aesthetics and readability
+6. Provide a web-based interactive 3D visualization
 
-## 2D Visualization Enhancements
+## Python Library Visualization
+
+### 2D Visualization Enhancements
 
 The `visualize()` method now supports multiple layout algorithms and improved visual styling:
 
@@ -51,7 +54,7 @@ ed.visualize(
   - Spring: Good for seeing natural clustering
   - Kamada-Kawai: Often provides more balanced layouts
 
-## 3D Interactive Visualization
+### 3D Interactive Visualization
 
 The `visualize_interactive()` method creates interactive 3D visualizations that can be explored in a web browser:
 
@@ -82,6 +85,53 @@ fig.write_html("my_visualization.html")
 - **Zoom and Rotate**: Full 3D navigation
 
 - **Visual Consistency**: Same color scheme as 2D visualization
+
+## Web Interface Visualization
+
+The web interface provides an enhanced interactive 3D visualization experience:
+
+### Key Features
+
+- **Real-time Updates**: The visualization updates automatically as items are added
+- **Persistent Labels**: Node labels are always visible, not just on hover
+- **Smart Label Truncation**: Long text and paragraphs are intelligently truncated
+- **Node Details Panel**: Click on nodes to see detailed information
+- **Responsive Design**: The visualization adapts to different screen sizes
+- **Visual Differentiation**: 
+  - Categories shown as spheres
+  - Items shown as cubes
+  - Size indicates importance
+  - Color indicates depth in the tree
+
+### Technical Implementation
+
+The web visualization is built using:
+
+- **React**: For the UI components
+- **Three.js**: For 3D rendering capabilities
+- **React Force Graph**: For the force-directed graph layout
+- **Custom Canvas Rendering**: For high-quality node labels
+
+### Label Rendering
+
+The visualization includes a sophisticated label rendering system:
+
+- **Automatic Truncation**: Long labels are automatically truncated
+- **Special Paragraph Handling**: Paragraphs show the first word followed by "..."
+- **Background Panels**: Labels have semi-transparent backgrounds for readability
+- **Dynamic Sizing**: Label size adjusts based on node importance
+- **Positioning**: Labels are positioned above nodes for clear visibility
+
+### Interaction
+
+The web visualization supports rich interaction:
+
+- **Node Selection**: Click on nodes to see details
+- **Camera Controls**: 
+  - Rotate: Click and drag
+  - Zoom: Mouse wheel
+  - Pan: Right-click and drag
+- **Force Simulation**: Nodes arrange themselves automatically based on relationships
 
 ## Examples
 
@@ -118,6 +168,8 @@ The visualization improvements were implemented with:
 3. Careful color selection for visual clarity
 4. Optimized parameter defaults for most use cases
 5. Enhanced configurability for specialized needs
+6. Canvas-based label rendering for web visualization
+7. Three.js integration for 3D rendering in the browser
 
 ## Future Enhancements
 
@@ -128,6 +180,8 @@ Potential areas for future visualization improvements:
 - Animation of tree evolution over time
 - Mini-map for navigating large structures
 - Additional layout algorithms
+- VR/AR visualization support
+- Collaborative visualization features
 
 ## Technical Requirements
 
@@ -136,6 +190,8 @@ The visualization features require:
 - networkx
 - plotly
 - numpy
+- three.js (web interface)
+- react-force-graph (web interface)
 
 These are already included in the project dependencies.
 

@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import Graph from './components/Graph';
 import InputForm from './components/InputForm';
 import SearchForm from './components/SearchForm';
+import Settings from './components/Settings';
 import { dictionaryApi } from './services/api';
 
 function App() {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   const [isLoading, setIsLoading] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
-  const [activeTab, setActiveTab] = useState('add'); // 'add' or 'search'
+  const [activeTab, setActiveTab] = useState('add'); // 'add', 'search', or 'settings'
   const [selectedNode, setSelectedNode] = useState(null);
   const [error, setError] = useState(null);
 
@@ -88,6 +89,15 @@ function App() {
     setSelectedNode(node);
   };
 
+  const handleDictionaryReset = async () => {
+    // Refresh the graph data after reset
+    await fetchDictionaryState();
+    // Clear any selected node
+    setSelectedNode(null);
+    // Clear search results
+    setSearchResults(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-indigo-600 text-white p-6">
@@ -137,6 +147,14 @@ function App() {
             >
               Search
             </button>
+            <button
+              className={`flex-1 py-3 px-4 text-center font-medium ${
+                activeTab === 'settings' ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-500' : 'text-gray-600'
+              }`}
+              onClick={() => setActiveTab('settings')}
+            >
+              Settings
+            </button>
           </div>
 
           <div className="p-6">
@@ -146,11 +164,17 @@ function App() {
                 onAddParagraph={handleAddParagraph} 
                 isLoading={isLoading} 
               />
-            ) : (
+            ) : activeTab === 'search' ? (
               <SearchForm 
                 onSearch={handleSearch} 
                 isLoading={isLoading} 
                 searchResults={searchResults} 
+              />
+            ) : (
+              <Settings
+                onReset={handleDictionaryReset}
+                isLoading={isLoading}
+                setIsLoading={setIsLoading}
               />
             )}
           </div>

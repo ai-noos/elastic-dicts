@@ -123,6 +123,18 @@ class SearchResponse(BaseModel):
         }
 
 
+class DeleteNodeRequest(BaseModel):
+    """Request model for deleting a node"""
+    node_key: str
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "node_key": "apple"
+            }
+        }
+
+
 class DictionaryStateResponse(BaseModel):
     """Response model for the dictionary state"""
     node_count: int

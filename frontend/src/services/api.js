@@ -64,6 +64,28 @@ export const dictionaryApi = {
       throw error;
     }
   },
+  
+  // Delete a node from the dictionary
+  deleteNode: async (nodeKey) => {
+    try {
+      const response = await api.post('/dictionary/delete-node', { node_key: nodeKey });
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting node:', error);
+      throw error;
+    }
+  },
+  
+  // Reset the dictionary
+  resetDictionary: async () => {
+    try {
+      const response = await api.post('/dictionary/reset');
+      return response.data;
+    } catch (error) {
+      console.error('Error resetting dictionary:', error);
+      throw error;
+    }
+  },
 };
 
 export default api; 

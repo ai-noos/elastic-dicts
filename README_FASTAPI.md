@@ -24,10 +24,12 @@ elastic-dict/
 
 ## Features
 
-- Interactive 3D visualization of the elastic dictionary
-- Add single items, multiple items, or paragraphs to the dictionary
-- Search for items in the dictionary
-- Real-time updates to the visualization as items are added
+- **Interactive 3D Visualization**: Dynamic graph with visible node labels and customizable appearance
+- **Data Management**: Add single items, multiple items, or paragraphs to the dictionary
+- **Semantic Search**: Find items in the dictionary based on meaning, not just exact matches
+- **Real-time Updates**: Live visualization updates as items are added
+- **Dictionary Reset**: Clear the dictionary and start fresh through the Settings tab
+- **Responsive UI**: User-friendly interface with tabbed navigation
 
 ## Getting Started
 
@@ -83,7 +85,43 @@ Once the backend is running, you can access the API documentation at http://loca
 
 The Elastic Dictionary is a data structure that organizes text entries based on semantic similarity, creating a hierarchical structure. It uses sentence transformers for embeddings and provides visualization capabilities.
 
-When you add items to the dictionary through the web interface, they are sent to the backend API, which processes them and updates the dictionary. The frontend then fetches the updated state and renders the visualization.
+### Key Components:
+
+1. **Backend (FastAPI)**:
+   - RESTful API for dictionary operations
+   - Singleton service pattern for dictionary management
+   - Persistent storage of dictionary state
+
+2. **Frontend (React)**:
+   - 3D force-directed graph visualization using Three.js
+   - Intuitive forms for adding content
+   - Semantic search interface
+   - Settings panel for dictionary management
+
+3. **Data Flow**:
+   - User inputs text through the frontend
+   - Data is sent to the backend API
+   - Backend processes the text and updates the dictionary
+   - Frontend fetches the updated state and renders the visualization
+   - Graph updates in real-time to show the new structure
+
+## Visualization Features
+
+- **Node Representation**: 
+  - Categories shown as spheres
+  - Items shown as cubes
+  - Size indicates importance in the hierarchy
+  - Color indicates depth in the tree
+
+- **Labels**: 
+  - Always visible node labels
+  - Automatic truncation for long text
+  - Special handling for paragraphs (first word + "...")
+
+- **Interaction**:
+  - Click nodes to see details
+  - Rotate, zoom, and pan the 3D view
+  - Hover for additional information
 
 ## License
 
