@@ -9,6 +9,8 @@ const Settings = ({ onReset, isLoading, setIsLoading }) => {
   const [selectedNode, setSelectedNode] = useState(null);
   const [deleteStatus, setDeleteStatus] = useState(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [rebuildStatus, setRebuildStatus] = useState(null);
+  const [showRebuildConfirmation, setShowRebuildConfirmation] = useState(false);
 
   const handleResetClick = () => {
     setShowConfirmation(true);
@@ -110,6 +112,43 @@ const Settings = ({ onReset, isLoading, setIsLoading }) => {
 
   const handleCancelDelete = () => {
     setShowDeleteConfirmation(false);
+  };
+
+  const handleRebuildClick = () => {
+    setShowRebuildConfirmation(true);
+  };
+
+  const handleConfirmRebuild = async () => {
+    try {
+      setIsLoading(true);
+      setRebuildStatus({ type: 'loading', message: 'Rebuilding tree structure...' });
+      
+      await dictionaryApi.rebuildTree();
+      
+      setRebuildStatus({ 
+        type: 'success', 
+        message: 'Tree structure rebuilt successfully!' 
+      });
+      
+      setShowRebuildConfirmation(false);
+      
+      // Call the parent component's reset handler to refresh the graph
+      if (onReset) {
+        onReset();
+      }
+    } catch (error) {
+      console.error('Error rebuilding tree:', error);
+      setRebuildStatus({ 
+        type: 'error', 
+        message: 'Failed to rebuild tree. Please try again.' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelRebuild = () => {
+    setShowRebuildConfirmation(false);
   };
 
   return (
@@ -226,6 +265,63 @@ const Settings = ({ onReset, isLoading, setIsLoading }) => {
                   : 'bg-blue-50 text-blue-700 border border-blue-200'
             }`}>
               <p>{deleteStatus.message}</p>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Rebuild Tree Section */}
+      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
+        <h3 className="text-xl font-semibold mb-4">Rebuild Tree Structure</h3>
+        
+        <div className="mb-6">
+          <p className="text-gray-600 mb-4">
+            Rebuild the entire tree structure to fix broken links and improve organization. 
+            This is useful when the tree becomes unbalanced or nodes are incorrectly placed.
+            Best used when the tree appears collapsed or has many nodes directly under the root.
+          </p>
+          
+          {!showRebuildConfirmation ? (
+            <button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md"
+              onClick={handleRebuildClick}
+              disabled={isLoading}
+            >
+              Rebuild Tree
+            </button>
+          ) : (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-md p-4">
+              <p className="text-indigo-700 font-medium mb-3">
+                Are you sure you want to rebuild the tree structure? This will attempt to create a better hierarchical organization of your nodes.
+              </p>
+              <div className="flex space-x-3">
+                <button
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md"
+                  onClick={handleConfirmRebuild}
+                  disabled={isLoading}
+                >
+                  Yes, Rebuild Tree
+                </button>
+                <button
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md"
+                  onClick={handleCancelRebuild}
+                  disabled={isLoading}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {rebuildStatus && (
+            <div className={`mt-4 p-3 rounded-md ${
+              rebuildStatus.type === 'success' 
+                ? 'bg-green-50 text-green-700 border border-green-200' 
+                : rebuildStatus.type === 'error'
+                  ? 'bg-red-50 text-red-700 border border-red-200'
+                  : 'bg-blue-50 text-blue-700 border border-blue-200'
+            }`}>
+              <p>{rebuildStatus.message}</p>
             </div>
           )}
         </div>

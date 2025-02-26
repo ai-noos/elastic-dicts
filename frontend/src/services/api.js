@@ -76,7 +76,7 @@ export const dictionaryApi = {
     }
   },
   
-  // Reset the dictionary
+  // Reset the dictionary (remove all items)
   resetDictionary: async () => {
     try {
       const response = await api.post('/dictionary/reset');
@@ -86,6 +86,17 @@ export const dictionaryApi = {
       throw error;
     }
   },
+  
+  // Rebuild the dictionary tree structure
+  rebuildTree: async () => {
+    try {
+      const response = await api.post('/dictionary/rebuild');
+      return response.data;
+    } catch (error) {
+      console.error('Error rebuilding dictionary tree:', error);
+      throw error;
+    }
+  }
 };
 
 export default api; 

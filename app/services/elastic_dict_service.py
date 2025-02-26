@@ -184,6 +184,73 @@ class ElasticDictionaryService:
         
         return True
     
+    def rebuild_tree(self) -> bool:
+        """
+        Rebuild the entire tree structure from scratch without deleting any nodes.
+        This forces a complete restructuring of the tree based on semantic similarity.
+        
+        Returns:
+            bool: True if the tree was rebuilt successfully
+        """
+        try:
+            # Store all nodes and their data
+            node_data = {}
+            for key, node in self.dictionary.all_nodes.items():
+                if key != self.dictionary.root.key:  # Skip the root
+                    node_data[key] = {
+                        'value': node.value,
+                        'embedding': node.embedding,
+                        'is_category_node': node.is_category_node
+                    }
+            
+            # Create a new dictionary with the same model
+            new_dictionary = ElasticDictionary(model_name=settings.DICTIONARY_MODEL)
+            
+            # Copy configuration from the old dictionary but adjust for better clustering
+            new_dictionary.restructure_threshold = self.dictionary.restructure_threshold
+            new_dictionary.min_similarity_threshold = self.dictionary.min_similarity_threshold * 0.9  # Slightly lower threshold
+            new_dictionary.max_similarity_threshold = self.dictionary.max_similarity_threshold * 0.9  # Slightly lower threshold
+            new_dictionary.enable_auto_restructure = True  # Ensure auto-restructure is enabled
+            new_dictionary.min_cluster_size = max(2, self.dictionary.min_cluster_size - 1)  # Lower min cluster size
+            
+            # First, add all category nodes
+            for key, data in node_data.items():
+                if data['is_category_node']:
+                    # Create the category node
+                    new_node = Node(key=key, value=data['value'], embedding=data['embedding'])
+                    new_node.is_category_node = True
+                    new_dictionary.all_nodes[key] = new_node
+            
+            # Then, add all regular nodes
+            for key, data in node_data.items():
+                if not data['is_category_node']:
+                    # Create the node
+                    new_node = Node(key=key, value=data['value'], embedding=data['embedding'])
+                    new_dictionary.all_nodes[key] = new_node
+                    
+                    # Find the best placement for this node
+                    if data['embedding'] is not None:
+                        parent_node, _ = new_dictionary._find_best_placement(data['embedding'])
+                        parent_node.add_child(new_node)
+                    else:
+                        # If no embedding, add to root
+                        new_dictionary.root.add_child(new_node)
+            
+            # Replace the old dictionary with the new one
+            self.dictionary = new_dictionary
+            
+            # Save the updated dictionary
+            self._save_dictionary()
+            
+            # Force restructuring to optimize the tree with more aggressive settings
+            self.dictionary.force_restructure()
+            self._save_dictionary()
+            
+            return True
+        except Exception as e:
+            print(f"Error rebuilding tree: {e}")
+            return False
+    
     def _generate_graph_data(self) -> GraphDataModel:
         """Generate graph data for visualization"""
         G = nx.DiGraph()

@@ -105,4 +105,20 @@ async def reset_dictionary():
         elastic_dict_service.reset_dictionary()
         return {"status": "success", "message": "Dictionary reset successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error resetting dictionary: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Error resetting dictionary: {str(e)}")
+
+
+@router.post("/rebuild", response_model=dict, summary="Rebuild the dictionary tree")
+async def rebuild_tree():
+    """
+    Rebuild the elastic dictionary tree structure without deleting any nodes.
+    This forces a complete restructuring of the tree based on semantic similarity.
+    """
+    try:
+        success = elastic_dict_service.rebuild_tree()
+        if success:
+            return {"status": "success", "message": "Dictionary tree rebuilt successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to rebuild dictionary tree")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error rebuilding dictionary tree: {str(e)}") 
