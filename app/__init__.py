@@ -1,0 +1,3 @@
+"""
+Elastic Dictionary FastAPI Backend
+""" 
