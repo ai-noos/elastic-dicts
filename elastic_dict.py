@@ -12,7 +12,6 @@ import re
 import pickle
 import os
 from typing import List, Dict, Any, Optional, Union, Tuple
-import json
 
 class Node:
     """A node in the elastic dictionary tree."""
@@ -344,578 +343,507 @@ class ElasticDictionary:
                 
                 print(f"Created category '{category_name}' with {len(cluster_nodes)} nodes")
     
-    def visualize(self, max_depth: int = None, layout: str = 'spring', 
-                  node_size_metric: str = None, title: str = "Elastic Dictionary Structure",
-                  figsize: tuple = (12, 8), save_path: str = None):
+    def visualize(self, max_depth: int = None, figsize=(12, 8), node_size_factor=1.0, label_offset=0.1,
+                 title="Elastic Dictionary Structure", layout="hierarchical"):
         """
-        Visualize the current tree structure with enhanced features.
+        Visualize the current tree structure with improved styling and layout.
         
         Args:
             max_depth: Maximum depth to visualize, None for no limit
-            layout: Layout algorithm to use ('spring', 'hierarchical', 'circular', 'kamada_kawai')
-            node_size_metric: Metric to determine node size ('children_count', 'depth', 'none')
+            figsize: Size of the figure as a tuple (width, height)
+            node_size_factor: Factor to scale all node sizes
+            label_offset: Offset for node labels to prevent overlap
             title: Title of the visualization
-            figsize: Figure size as tuple (width, height)
-            save_path: Path to save the visualization, None to display only
+            layout: Layout algorithm to use ('hierarchical', 'radial', 'spring', 'kamada_kawai')
         """
         G = nx.DiGraph()
-        node_attrs = {}
+        node_colors = {}
+        node_sizes = {}
+        node_depths = {}
+        node_counts = {}  # Count of descendants for each node
         
-        def add_nodes_to_graph(node, depth=0):
+        # First pass to build the graph and calculate properties
+        def process_node(node, depth=0):
             if max_depth is not None and depth > max_depth:
-                return
-                
-            # Add node to graph
+                return 0  # No descendants at this level
+            
+            # Assign depths
+            node_depths[node.key] = depth
+            
+            # Count descendants recursively
+            descendant_count = 1  # Count self
+            for child in node.children:
+                if max_depth is None or depth < max_depth:
+                    descendant_count += process_node(child, depth + 1)
+            
+            node_counts[node.key] = descendant_count
+            
+            # Assign colors: categories are orange, regular nodes are blue, root is green
+            if node == self.root:
+                node_colors[node.key] = '#2ca02c'  # Green
+            elif node.is_category_node:
+                node_colors[node.key] = '#ff7f0e'  # Orange
+            else:
+                node_colors[node.key] = '#1f77b4'  # Blue
+            
+            # Add to graph
             if node.parent:
                 G.add_edge(node.parent.key, node.key)
             else:
                 G.add_node(node.key)
-            
-            # Store node attributes for visualization
-            if node == self.root:
-                node_attrs[node.key] = {"color": "green", "type": "root", "depth": depth}
-            elif node.is_category_node:
-                node_attrs[node.key] = {"color": "orange", "type": "category", "depth": depth}
-            else:
-                node_attrs[node.key] = {"color": "skyblue", "type": "item", "depth": depth}
-            
-            node_attrs[node.key]["children_count"] = len(node.children)
-            node_attrs[node.key]["text"] = node.text if hasattr(node, 'text') else node.key
                 
-            for child in node.children:
-                add_nodes_to_graph(child, depth+1)
+            return descendant_count
         
-        add_nodes_to_graph(self.root)
+        process_node(self.root)
         
-        # Calculate node sizes based on selected metric
-        node_sizes = []
-        node_colors = []
-        for node in G.nodes():
-            if node_size_metric == 'children_count':
-                # Size based on number of children (min 500, max 3000)
-                size = max(500, min(3000, node_attrs[node]["children_count"] * 300 + 500))
-            elif node_size_metric == 'depth':
-                # Size based on inverse of depth (deeper nodes are smaller)
-                depth = node_attrs[node]["depth"]
-                size = max(500, 3000 - (depth * 300))
-            else:
-                # Default fixed size
-                size = 1500
+        # Calculate node sizes based on descendants and depth
+        max_count = max(node_counts.values()) if node_counts else 1
+        min_size = 300 * node_size_factor
+        max_size = 1200 * node_size_factor
+        
+        for node_key in G.nodes():
+            # Nodes higher in the tree and with more descendants are larger
+            depth_factor = 1.0 - 0.1 * (node_depths.get(node_key, 0))
+            depth_factor = max(0.5, depth_factor)  # Don't go below 0.5
             
-            node_sizes.append(size)
-            node_colors.append(node_attrs[node]["color"])
+            count_factor = node_counts.get(node_key, 1) / max_count
+            node_sizes[node_key] = min_size + (max_size - min_size) * count_factor * depth_factor
         
         # Create the figure
         plt.figure(figsize=figsize)
         
-        # Apply the selected layout
-        if layout == 'hierarchical':
-            try:
-                # First try with pygraphviz if available
-                import pygraphviz
-                pos = nx.nx_agraph.graphviz_layout(G, prog='dot')
-            except (ImportError, ModuleNotFoundError):
-                print("Warning: pygraphviz not available. Using pydot layout instead.")
-                try:
-                    import pydot
-                    pos = nx.drawing.nx_pydot.pydot_layout(G, prog='dot')
-                except (ImportError, ModuleNotFoundError, Exception):
-                    print("Warning: pydot also not available. Using tree layout instead.")
-                    pos = nx.spring_layout(G, seed=42)
-                    # Apply some vertical spacing based on depth
-                    for node in G.nodes():
-                        if node in node_attrs:
-                            depth = node_attrs[node]["depth"]
-                            pos[node] = (pos[node][0], -depth * 0.2)  # Adjust y-position based on depth
-            except Exception as e:
-                print(f"Warning: Hierarchical layout failed: {e}. Falling back to spring layout.")
-                pos = nx.spring_layout(G, seed=42)
-            is_3d = False
-        elif layout == 'circular':
-            pos = nx.circular_layout(G)
-        elif layout == 'kamada_kawai':
+        # Create custom layouts without using graphviz
+        if layout == "hierarchical":
+            # Create a hierarchical layout using a custom implementation
+            pos = self._create_hierarchical_layout(G, node_depths)
+        elif layout == "radial":
+            # Create a radial layout centered on root
+            pos = self._create_radial_layout(G, node_depths)
+        elif layout == "kamada_kawai":
+            # Use networkx's kamada_kawai layout
             pos = nx.kamada_kawai_layout(G)
-        else:  # default to spring
-            pos = nx.spring_layout(G, seed=42)
+        else:
+            # Default to spring layout with depth as initial positions
+            pos = nx.spring_layout(
+                G, 
+                pos={n: (0, -d) for n, d in node_depths.items()},
+                fixed=[self.root.key],
+                k=1.5/np.sqrt(len(G.nodes())),
+                iterations=50
+            )
         
         # Draw the graph
-        nx.draw(G, pos, with_labels=True, node_color=node_colors, 
-                node_size=node_sizes, arrows=True, edge_color='gray',
-                font_size=10, font_weight='bold')
+        nx.draw_networkx_edges(G, pos, alpha=0.4, edge_color='gray', width=1.0, arrows=True, 
+                             arrowstyle='-|>', arrowsize=15)
         
-        # Add a legend
+        # Draw nodes
+        node_list = list(G.nodes())
+        node_color_list = [node_colors.get(node, '#1f77b4') for node in node_list]
+        node_size_list = [node_sizes.get(node, min_size) for node in node_list]
+        
+        nx.draw_networkx_nodes(G, pos, nodelist=node_list, node_color=node_color_list, 
+                              node_size=node_size_list, alpha=0.8, linewidths=1.0, 
+                              edgecolors='black')
+        
+        # Draw labels with adjusted position to avoid overlap
+        label_pos = {n: (p[0], p[1] + label_offset) for n, p in pos.items()}
+        nx.draw_networkx_labels(G, label_pos, font_size=10, font_family='sans-serif', 
+                               font_weight='bold')
+        
+        # Add legend for node types
         legend_elements = [
-            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='green', markersize=10, label='Root'),
-            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='orange', markersize=10, label='Category'),
-            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='skyblue', markersize=10, label='Item')
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#2ca02c', markersize=10, label='Root'),
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#ff7f0e', markersize=10, label='Category'),
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#1f77b4', markersize=10, label='Item')
         ]
         plt.legend(handles=legend_elements, loc='upper right')
         
-        plt.title(title)
+        # Add title and adjust layout
+        plt.title(title, fontsize=14, fontweight='bold')
+        plt.axis('off')
+        plt.tight_layout()
         
-        # Save or show the figure
-        if save_path:
-            plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        plt.show()
+        return plt.gcf()  # Return the figure for potential saving
+
+    def _create_hierarchical_layout(self, G, node_depths):
+        """
+        Create a hierarchical layout without using graphviz.
+        Places nodes in layers based on their depth.
+        
+        Args:
+            G: NetworkX graph
+            node_depths: Dictionary of node depths
+            
+        Returns:
+            Dictionary of node positions
+        """
+        pos = {}
+        max_depth = max(node_depths.values()) if node_depths else 0
+        
+        # Group nodes by depth
+        nodes_by_depth = {}
+        for node, depth in node_depths.items():
+            if depth not in nodes_by_depth:
+                nodes_by_depth[depth] = []
+            nodes_by_depth[depth].append(node)
+        
+        # Position nodes in layers
+        for depth, nodes in nodes_by_depth.items():
+            num_nodes = len(nodes)
+            width = max(1.0, num_nodes * 0.5)  # Width increases with number of nodes
+            
+            # Place nodes at this depth in a horizontal line
+            for i, node in enumerate(nodes):
+                x = (i / max(1, num_nodes - 1)) * width - (width / 2)
+                y = -depth  # Negative to place root at top
+                pos[node] = (x, y)
+        
+        return pos
     
-    def visualize_interactive(self, max_depth: int = None, layout: str = 'force', 
-                             node_size_metric: str = None, show_labels: bool = True,
-                             focus_node: str = None, filter_types: list = None,
-                             height: int = 800, width: int = 1000):
+    def _create_radial_layout(self, G, node_depths):
+        """
+        Create a radial layout without using graphviz.
+        Places nodes in concentric circles with root at center.
+        
+        Args:
+            G: NetworkX graph
+            node_depths: Dictionary of node depths
+            
+        Returns:
+            Dictionary of node positions
+        """
+        pos = {}
+        max_depth = max(node_depths.values()) if node_depths else 0
+        
+        # Group nodes by depth
+        nodes_by_depth = {}
+        for node, depth in node_depths.items():
+            if depth not in nodes_by_depth:
+                nodes_by_depth[depth] = []
+            nodes_by_depth[depth].append(node)
+        
+        # Position nodes in concentric circles
+        for depth, nodes in nodes_by_depth.items():
+            num_nodes = len(nodes)
+            radius = depth * 1.0  # Radius increases with depth
+            
+            # Place nodes in a circle at this depth
+            for i, node in enumerate(nodes):
+                angle = (i / num_nodes) * 2 * np.pi
+                x = radius * np.cos(angle)
+                y = radius * np.sin(angle)
+                pos[node] = (x, y)
+        
+        return pos
+    
+    def visualize_interactive(self, max_depth: int = None, layout_type="3d_hierarchy", height=800, width=1000):
         """
         Create an enhanced interactive visualization of the tree using Plotly.
         
         Args:
             max_depth: Maximum depth to visualize, None for no limit
-            layout: Layout algorithm ('force', '3d', 'hierarchy')
-            node_size_metric: Metric for node sizing ('children_count', 'depth', None)
-            show_labels: Whether to show node labels directly on the graph
-            focus_node: Key of the node to focus on (center the visualization)
-            filter_types: List of node types to show ('root', 'category', 'item')
-            height: Height of the visualization in pixels
-            width: Width of the visualization in pixels
+            layout_type: Type of layout to use ('3d_hierarchy', '3d_radial', '3d_spring')
+            height: Height of the plot in pixels
+            width: Width of the plot in pixels
+            
+        Returns:
+            Plotly figure
         """
         G = nx.DiGraph()
-        node_attrs = {}
+        node_colors = {}  # Store colors for nodes
+        node_sizes = {}   # Store sizes for nodes
+        node_info = {}    # Store additional node info for hover
+        node_depths = {}  # Store depth of each node
         
-        def add_nodes_to_graph(node, depth=0):
+        # First pass to build the graph and compute properties
+        def process_node(node, depth=0):
             if max_depth is not None and depth > max_depth:
-                return
-            
-            # Assign attributes
-            if node == self.root:
-                node_attrs[node.key] = {
-                    "color": "green", 
-                    "type": "root", 
-                    "depth": depth,
-                    "children_count": len(node.children),
-                    "text": node.text if hasattr(node, 'text') else node.key,
-                    "hover_text": f"Root: {node.key}<br>Children: {len(node.children)}"
-                }
-            elif node.is_category_node:
-                node_attrs[node.key] = {
-                    "color": "orange", 
-                    "type": "category", 
-                    "depth": depth,
-                    "children_count": len(node.children),
-                    "text": node.text if hasattr(node, 'text') else node.key,
-                    "hover_text": f"Category: {node.key}<br>Depth: {depth}<br>Children: {len(node.children)}"
-                }
-            else:
-                node_attrs[node.key] = {
-                    "color": "skyblue", 
-                    "type": "item", 
-                    "depth": depth,
-                    "children_count": len(node.children),
-                    "text": node.text if hasattr(node, 'text') else node.key,
-                    "hover_text": f"Item: {node.key}<br>Depth: {depth}"
-                }
+                return 0  # No descendants
                 
+            node_depths[node.key] = depth
+            
+            # Store node info for hover
+            info = {
+                'type': 'Root' if node == self.root else ('Category' if node.is_category_node else 'Item'),
+                'depth': depth,
+                'children': len(node.children),
+                'value': str(node.value)[:50] + ('...' if len(str(node.value)) > 50 else '')
+            }
+            node_info[node.key] = info
+            
+            # Assign colors based on node type
+            if node == self.root:
+                node_colors[node.key] = '#2ca02c'  # Green
+            elif node.is_category_node:
+                node_colors[node.key] = '#ff7f0e'  # Orange
+            else:
+                node_colors[node.key] = '#1f77b4'  # Blue
+                
+            # Add to graph
             if node.parent:
                 G.add_edge(node.parent.key, node.key)
             else:
                 G.add_node(node.key)
-                
+            
+            # Calculate descendants for node sizing
+            descendant_count = 1  # Count self
             for child in node.children:
-                add_nodes_to_graph(child, depth+1)
+                if max_depth is None or depth < max_depth:
+                    descendant_count += process_node(child, depth + 1)
+            
+            # Calculate node size based on descendants and depth
+            max_depth_factor = 1.0 - 0.1 * depth
+            size = 10 + (5 * descendant_count * max_depth_factor)
+            node_sizes[node.key] = min(30, size)  # Cap size for very large nodes
+            
+            return descendant_count
+            
+        process_node(self.root)
         
-        add_nodes_to_graph(self.root)
-        
-        # Apply filters if specified
-        if filter_types:
-            nodes_to_keep = [node for node in G.nodes() if node_attrs[node]["type"] in filter_types]
-            G = G.subgraph(nodes_to_keep)
-        
-        # Focus on a specific node if requested
-        if focus_node and focus_node in G:
-            # Get the subgraph containing the focus node and its neighbors
-            neighbors = list(G.predecessors(focus_node)) + list(G.successors(focus_node))
-            nodes_to_keep = [focus_node] + neighbors
-            G = G.subgraph(nodes_to_keep)
-        
-        # Choose layout algorithm
-        if layout == 'hierarchy':
-            # For hierarchical layout, we'll use nx's graphviz wrapper first, then convert to Plotly
-            try:
-                # First try with pygraphviz if available
-                import pygraphviz
-                pos = nx.nx_agraph.graphviz_layout(G, prog='dot')
-            except (ImportError, ModuleNotFoundError):
-                print("Warning: pygraphviz not available. Using pydot layout instead.")
-                try:
-                    import pydot
-                    pos = nx.drawing.nx_pydot.pydot_layout(G, prog='dot')
-                except (ImportError, ModuleNotFoundError, Exception):
-                    print("Warning: pydot also not available. Using tree layout instead.")
-                    pos = nx.spring_layout(G, seed=42)
-                    # Apply some vertical spacing based on depth
-                    for node in G.nodes():
-                        if node in node_attrs:
-                            depth = node_attrs[node]["depth"]
-                            pos[node] = (pos[node][0], -depth * 0.2)  # Adjust y-position based on depth
-            except Exception as e:
-                print(f"Warning: Hierarchical layout failed: {e}. Falling back to spring layout.")
-                pos = nx.spring_layout(G, seed=42)
-            is_3d = False
-        elif layout == '3d':
-            pos = nx.spring_layout(G, dim=3, seed=42)
-            is_3d = True
-        else:  # Default to force-directed layout
-            pos = nx.spring_layout(G, seed=42)
-            is_3d = False
+        # Create position layout based on selected type
+        if layout_type == "3d_hierarchy":
+            # Create a hierarchical 3D layout
+            pos = {}
+            max_depth = max(node_depths.values()) if node_depths else 0
             
-        # Process nodes and edges
-        if is_3d:
-            # 3D visualization
-            edge_x, edge_y, edge_z = [], [], []
+            # Group nodes by depth
+            nodes_by_depth = {}
+            for node, depth in node_depths.items():
+                if depth not in nodes_by_depth:
+                    nodes_by_depth[depth] = []
+                nodes_by_depth[depth].append(node)
             
-            for edge in G.edges():
-                x0, y0, z0 = pos[edge[0]]
-                x1, y1, z1 = pos[edge[1]]
-                edge_x.extend([x0, x1, None])
-                edge_y.extend([y0, y1, None])
-                edge_z.extend([z0, z1, None])
-                
-            edge_trace = go.Scatter3d(
-                x=edge_x, y=edge_y, z=edge_z,
-                line=dict(width=1.5, color='#888'),
-                hoverinfo='none',
-                mode='lines')
-            
-            # Create node traces - separate by type for legend
-            node_groups = {'root': [], 'category': [], 'item': []}
-            
-            for node in G.nodes():
-                if node not in node_attrs:
-                    continue
-                    
-                attrs = node_attrs[node]
-                node_type = attrs["type"]
-                
-                # Calculate node size
-                if node_size_metric == 'children_count':
-                    size = max(5, min(20, attrs["children_count"] * 2 + 5))
-                elif node_size_metric == 'depth':
-                    size = max(5, 20 - (attrs["depth"] * 2))
-                else:
-                    size = 10
-                
-                node_trace = go.Scatter3d(
-                    x=[pos[node][0]], 
-                    y=[pos[node][1]], 
-                    z=[pos[node][2]],
-                    mode='markers+text' if show_labels else 'markers',
-                    hovertext=[attrs["hover_text"]],
-                    text=[node] if show_labels else None,
-                    textposition="top center",
-                    name=node_type.capitalize(),
-                    marker=dict(
-                        size=size,
-                        color=attrs["color"],
-                        line=dict(width=1, color='DarkSlateGrey')
-                    ),
-                    showlegend=True if node == next(iter(G.nodes())) or len(node_groups[node_type]) == 0 else False
-                )
-                node_groups[node_type].append(node_trace)
-            
-            # Flatten node groups
-            node_traces = [trace for group in node_groups.values() for trace in group]
-            
-            # Create figure
-            fig = go.Figure(data=[edge_trace] + node_traces,
-                layout=go.Layout(
-                    title="Interactive Elastic Dictionary Visualization (3D)",
-                    showlegend=True,
-                    legend=dict(
-                        yanchor="top",
-                        y=0.99,
-                        xanchor="left",
-                        x=0.01
-                    ),
-                    height=height,
-                    width=width,
-                    margin=dict(b=0, l=0, r=0, t=40),
-                    scene=dict(
-                        xaxis=dict(showbackground=False, showticklabels=False, title=''),
-                        yaxis=dict(showbackground=False, showticklabels=False, title=''),
-                        zaxis=dict(showbackground=False, showticklabels=False, title='')
-                    ),
-                    updatemenus=[
-                        dict(
-                            buttons=[
-                                dict(
-                                    args=[{'visible': [True] * len([edge_trace] + node_traces)}],
-                                    label="Show All",
-                                    method="update"
-                                ),
-                                dict(
-                                    args=[{'visible': [True] + [trace.name == "Root" for trace in node_traces]}],
-                                    label="Root Only",
-                                    method="update"
-                                ),
-                                dict(
-                                    args=[{'visible': [True] + [trace.name in ["Root", "Category"] for trace in node_traces]}],
-                                    label="Categories Only",
-                                    method="update"
-                                ),
-                                dict(
-                                    args=[{'visible': [True] + [trace.name == "Item" for trace in node_traces]}],
-                                    label="Items Only",
-                                    method="update"
-                                ),
-                            ],
-                            direction="down",
-                            pad={"r": 10, "t": 10},
-                            showactive=True,
-                            x=0.1,
-                            xanchor="left",
-                            y=1.1,
-                            yanchor="top"
-                        ),
-                    ]
-                )
-            )
-            
-        else:
-            # 2D visualization
-            edge_trace = go.Scatter(
-                x=[], y=[],
-                line=dict(width=1, color='#888'),
-                hoverinfo='none',
-                mode='lines')
-            
-            for edge in G.edges():
-                x0, y0 = pos[edge[0]]
-                x1, y1 = pos[edge[1]]
-                edge_trace['x'] += (x0, x1, None)
-                edge_trace['y'] += (y0, y1, None)
-            
-            # Create node traces grouped by type
-            node_traces = []
-            for node_type, color in [('root', 'green'), ('category', 'orange'), ('item', 'skyblue')]:
-                # Filter nodes by type
-                nodes_of_type = [node for node in G.nodes() if node in node_attrs and node_attrs[node]["type"] == node_type]
-                
-                if not nodes_of_type:
-                    continue
-                
-                # Calculate positions and sizes
-                x_vals = []
-                y_vals = []
-                hover_texts = []
-                text_vals = []
-                sizes = []
-                
-                for node in nodes_of_type:
-                    attrs = node_attrs[node]
-                    x, y = pos[node]
-                    x_vals.append(x)
-                    y_vals.append(y)
-                    hover_texts.append(attrs["hover_text"])
-                    text_vals.append(node if show_labels else "")
-                    
-                    # Calculate node size
-                    if node_size_metric == 'children_count':
-                        size = max(10, min(40, attrs["children_count"] * 4 + 10))
-                    elif node_size_metric == 'depth':
-                        size = max(10, 40 - (attrs["depth"] * 4))
+            # Position nodes in layers
+            for depth, nodes in nodes_by_depth.items():
+                num_nodes = len(nodes)
+                for i, node in enumerate(nodes):
+                    # Calculate position in a circular pattern at each depth
+                    if depth == 0:  # Root at the top
+                        pos[node] = (0, 0, max_depth)
                     else:
-                        size = 20
-                    
-                    sizes.append(size)
+                        radius = depth * 1.5
+                        theta = (i / num_nodes) * 2 * np.pi
+                        x = radius * np.cos(theta)
+                        y = radius * np.sin(theta)
+                        z = max_depth - depth
+                        pos[node] = (x, y, z)
+        
+        elif layout_type == "3d_radial":
+            # Create a radial 3D layout
+            pos = {}
+            max_depth = max(node_depths.values()) if node_depths else 0
+            
+            # Group nodes by depth
+            nodes_by_depth = {}
+            for node, depth in node_depths.items():
+                if depth not in nodes_by_depth:
+                    nodes_by_depth[depth] = []
+                nodes_by_depth[depth].append(node)
+            
+            # Position nodes in a radial pattern
+            for depth, nodes in nodes_by_depth.items():
+                num_nodes = len(nodes)
+                for i, node in enumerate(nodes):
+                    if depth == 0:  # Root at the center
+                        pos[node] = (0, 0, 0)
+                    else:
+                        # Spherical coordinates
+                        radius = depth * 2
+                        theta = (i / num_nodes) * 2 * np.pi
+                        phi = (depth / max_depth) * np.pi / 2  # Angle from z-axis
+                        
+                        x = radius * np.sin(phi) * np.cos(theta)
+                        y = radius * np.sin(phi) * np.sin(theta)
+                        z = radius * np.cos(phi)
+                        pos[node] = (x, y, z)
+        
+        else:  # Default 3D spring layout
+            pos = nx.spring_layout(G, dim=3, seed=42)
+        
+        # Create edge traces
+        edge_x = []
+        edge_y = []
+        edge_z = []
+        
+        for edge in G.edges():
+            x0, y0, z0 = pos[edge[0]]
+            x1, y1, z1 = pos[edge[1]]
+            
+            # Create smooth curved lines for the edges
+            points = 10  # Number of points to create the curve
+            for i in range(points):
+                t = i / (points - 1)
+                # Simple linear interpolation between points
+                x = x0 * (1 - t) + x1 * t
+                y = y0 * (1 - t) + y1 * t
+                z = z0 * (1 - t) + z1 * t
                 
-                node_trace = go.Scatter(
-                    x=x_vals, 
-                    y=y_vals,
-                    mode='markers+text' if show_labels else 'markers',
-                    hovertext=hover_texts,
-                    text=text_vals,
-                    textposition="top center",
-                    name=node_type.capitalize(),
-                    marker=dict(
-                        size=sizes,
-                        color=color,
-                        line=dict(width=1, color='DarkSlateGrey')
-                    )
-                )
-                node_traces.append(node_trace)
+                edge_x.append(x)
+                edge_y.append(y)
+                edge_z.append(z)
             
-            # Create figure
-            title_text = "Interactive Elastic Dictionary Visualization"
-            if layout == 'hierarchy':
-                title_text += " (Hierarchical)"
+            # Add None to create separation between edges
+            edge_x.append(None)
+            edge_y.append(None)
+            edge_z.append(None)
             
-            fig = go.Figure(data=[edge_trace] + node_traces,
-                layout=go.Layout(
-                    title=title_text,
-                    showlegend=True,
-                    height=height,
-                    width=width,
-                    margin=dict(b=0, l=0, r=0, t=40),
-                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                    legend=dict(
-                        yanchor="top",
-                        y=0.99,
-                        xanchor="left",
-                        x=0.01
-                    ),
-                    hovermode='closest',
-                    clickmode='event+select',
-                    # Add buttons for filtering
-                    updatemenus=[
-                        dict(
-                            buttons=[
-                                dict(
-                                    args=[{'visible': [True] * len([edge_trace] + node_traces)}],
-                                    label="Show All",
-                                    method="update"
-                                ),
-                                dict(
-                                    args=[{'visible': [True] + [trace.name == "Root" for trace in node_traces]}],
-                                    label="Root Only",
-                                    method="update"
-                                ),
-                                dict(
-                                    args=[{'visible': [True] + [trace.name in ["Root", "Category"] for trace in node_traces]}],
-                                    label="Categories Only",
-                                    method="update"
-                                ),
-                                dict(
-                                    args=[{'visible': [True] + [trace.name == "Item" for trace in node_traces]}],
-                                    label="Items Only",
-                                    method="update"
-                                ),
-                            ],
-                            direction="down",
-                            pad={"r": 10, "t": 10},
-                            showactive=True,
-                            x=0.1,
-                            xanchor="left",
-                            y=1.1,
-                            yanchor="top"
-                        ),
-                    ]
-                )
-            )
-            
-            # Add annotations for node labels if requested but not shown directly
-            if not show_labels:
-                annotations = []
-                for node in G.nodes():
-                    if node in node_attrs:
-                        annotations.append(
-                            dict(
-                                x=pos[node][0],
-                                y=pos[node][1],
-                                text=node,
-                                showarrow=False,
-                                font=dict(size=10)
-                            )
-                        )
-                fig.update_layout(annotations=annotations)
+        edge_trace = go.Scatter3d(
+            x=edge_x, y=edge_y, z=edge_z,
+            line=dict(width=2, color='rgba(150,150,150,0.5)'),
+            hoverinfo='none',
+            mode='lines')
         
-        # Add download button
-        fig.update_layout(
-            updatemenus=[
-                dict(
-                    buttons=[
-                        dict(
-                            args=["toImageButtonOptions", {"format": "png", "filename": "elastic_dict_viz"}],
-                            label="Download PNG",
-                            method="relayout"
-                        ),
-                        dict(
-                            args=["toImageButtonOptions", {"format": "svg", "filename": "elastic_dict_viz"}],
-                            label="Download SVG",
-                            method="relayout"
-                        ),
-                        dict(
-                            args=["toImageButtonOptions", {"format": "pdf", "filename": "elastic_dict_viz"}],
-                            label="Download PDF",
-                            method="relayout"
-                        ),
-                    ],
-                    direction="down",
-                    pad={"r": 10, "t": 10},
-                    showactive=True,
-                    x=0.9,
-                    xanchor="right",
-                    y=1.1,
-                    yanchor="top"
+        # Create node traces - separate by color
+        node_groups = {}
+        for node in G.nodes():
+            color = node_colors.get(node, '#1f77b4')
+            if color not in node_groups:
+                node_groups[color] = {
+                    'x': [], 'y': [], 'z': [], 
+                    'text': [], 'size': [], 
+                    'hover_info': [], 'color_name': []
+                }
+            
+            x, y, z = pos[node]
+            node_groups[color]['x'].append(x)
+            node_groups[color]['y'].append(y)
+            node_groups[color]['z'].append(z)
+            node_groups[color]['text'].append(node)
+            node_groups[color]['size'].append(node_sizes.get(node, 10))
+            
+            # Create hover text with node info
+            info = node_info.get(node, {})
+            hover_text = f"<b>{node}</b><br>"
+            hover_text += f"Type: {info.get('type', 'Unknown')}<br>"
+            hover_text += f"Depth: {info.get('depth', 'Unknown')}<br>"
+            hover_text += f"Children: {info.get('children', 0)}<br>"
+            if 'value' in info:
+                hover_text += f"Value: {info['value']}<br>"
+            
+            node_groups[color]['hover_info'].append(hover_text)
+            
+            # Assign color names for legend
+            if color == '#2ca02c':
+                node_groups[color]['color_name'].append('Root')
+            elif color == '#ff7f0e':
+                node_groups[color]['color_name'].append('Category')
+            else:
+                node_groups[color]['color_name'].append('Item')
+        
+        node_traces = []
+        for color, data in node_groups.items():
+            # Get the type name for this color group
+            type_name = data['color_name'][0] if data['color_name'] else 'Unknown'
+            
+            node_trace = go.Scatter3d(
+                x=data['x'], y=data['y'], z=data['z'],
+                mode='markers',
+                hovertext=data['hover_info'],
+                hoverinfo='text',
+                name=type_name,
+                marker=dict(
+                    size=data['size'],
+                    color=color,
+                    sizemode='diameter',
+                    line=dict(width=1, color='DarkSlateGrey'),
+                    opacity=0.8
                 ),
-            ] + fig.layout.updatemenus
-        )
-        
-        # Add help annotation
-        help_text = """
-        Controls:
-        - Click and drag to rotate (3D) or pan (2D)
-        - Scroll to zoom
-        - Double-click to reset view
-        - Click legend items to toggle visibility
-        - Use the dropdown to filter by node type
-        """
-        
-        fig.add_annotation(
-            xref="paper", yref="paper",
-            x=0.01, y=0.01,
-            text=help_text,
-            showarrow=False,
-            font=dict(size=10),
-            align="left"
-        )
-        
-        fig.show()
-        
-        # Return the figure object to allow additional customization if needed
-        return fig
-    
-    def export_graph(self, format='graphml', filename='elastic_dict_graph'):
-        """
-        Export the graph structure to file in various formats.
-        
-        Args:
-            format: Export format ('graphml', 'gexf', 'json', 'dot')
-            filename: Base filename to use (without extension)
-        
-        Returns:
-            Path to saved file
-        """
-        G = nx.DiGraph()
-        
-        def add_nodes_to_graph(node):
-            # Add node attributes
-            G.add_node(
-                node.key, 
-                type=('root' if node == self.root else 'category' if node.is_category_node else 'item'),
-                text=node.text if hasattr(node, 'text') else node.key,
-                children_count=len(node.children)
+                text=data['text'],
+                textposition="top center"
             )
-            
-            # Add edges to children
-            for child in node.children:
-                G.add_edge(node.key, child.key)
-                add_nodes_to_graph(child)
+            node_traces.append(node_trace)
         
-        add_nodes_to_graph(self.root)
+        # Add legend items for types
+        legend_trace_root = go.Scatter3d(
+            x=[None], y=[None], z=[None],
+            mode='markers',
+            name='Root',
+            marker=dict(size=15, color='#2ca02c'),
+            showlegend=True
+        )
         
-        # Export to the specified format
-        full_filename = f"{filename}.{format}"
-        if format == 'graphml':
-            nx.write_graphml(G, full_filename)
-        elif format == 'gexf':
-            nx.write_gexf(G, full_filename)
-        elif format == 'json':
-            data = nx.node_link_data(G)
-            with open(full_filename, 'w') as f:
-                json.dump(data, f, indent=2)
-        elif format == 'dot':
-            nx.drawing.nx_pydot.write_dot(G, full_filename)
-        else:
-            raise ValueError(f"Unsupported export format: {format}")
+        legend_trace_category = go.Scatter3d(
+            x=[None], y=[None], z=[None],
+            mode='markers',
+            name='Category',
+            marker=dict(size=15, color='#ff7f0e'),
+            showlegend=True
+        )
         
-        return full_filename
+        legend_trace_item = go.Scatter3d(
+            x=[None], y=[None], z=[None],
+            mode='markers',
+            name='Item',
+            marker=dict(size=15, color='#1f77b4'),
+            showlegend=True
+        )
+        
+        # Create figure with improved layout
+        fig = go.Figure(
+            data=[edge_trace] + node_traces,
+            layout=go.Layout(
+                title={
+                    'text': "Interactive Elastic Dictionary Visualization",
+                    'y':0.95,
+                    'x':0.5,
+                    'xanchor': 'center',
+                    'yanchor': 'top',
+                    'font': dict(size=20)
+                },
+                showlegend=True,
+                legend=dict(
+                    yanchor="top",
+                    y=0.99,
+                    xanchor="left",
+                    x=0.01,
+                    bgcolor="rgba(255, 255, 255, 0.5)"
+                ),
+                margin=dict(l=0, r=0, b=0, t=40),
+                scene=dict(
+                    xaxis=dict(showticklabels=False, title='', showgrid=False, zeroline=False),
+                    yaxis=dict(showticklabels=False, title='', showgrid=False, zeroline=False),
+                    zaxis=dict(showticklabels=False, title='', showgrid=False, zeroline=False),
+                    camera=dict(
+                        eye=dict(x=1.5, y=1.5, z=1.0)
+                    ),
+                    aspectmode='manual',
+                    aspectratio=dict(x=1, y=1, z=0.8)
+                ),
+                height=height,
+                width=width,
+                hovermode='closest',
+                updatemenus=[
+                    dict(
+                        buttons=[
+                            dict(
+                                args=[{'scene.camera.eye': dict(x=1.5, y=1.5, z=1.0)}],
+                                label="Default View",
+                                method="relayout"
+                            ),
+                            dict(
+                                args=[{'scene.camera.eye': dict(x=0, y=0, z=2.5)}],
+                                label="Top View",
+                                method="relayout"
+                            ),
+                            dict(
+                                args=[{'scene.camera.eye': dict(x=2.5, y=0, z=0)}],
+                                label="Side View",
+                                method="relayout"
+                            )
+                        ],
+                        direction="down",
+                        pad={"r": 10, "t": 10},
+                        showactive=True,
+                        x=0.1,
+                        xanchor="left",
+                        y=0,
+                        yanchor="bottom"
+                    )
+                ]
+            )
+        )
+        
+        return fig
     
     def find(self, query: str) -> List[Tuple[Node, float]]:
         """
