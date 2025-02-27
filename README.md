@@ -2,7 +2,7 @@
 
 An adaptive, hierarchical data structure that dynamically organizes string data and text into a semantic tree structure, now with a full-featured web interface.
 
-![Elastic Dictionary](https://via.placeholder.com/800x400?text=Elastic+Dictionary+Visualization)
+![Elastic Dictionary](frontend/public/logo.svg)
 
 ## Overview
 
@@ -41,23 +41,19 @@ This project includes both the core Elastic Dictionary implementation and a comp
 
 ```
 elastic-dict/
-├── app/                    # FastAPI backend
-│   ├── api/                # API routes
-│   │   └── endpoints/      # API endpoints
-│   ├── core/               # Core application components
-│   ├── models/             # Data models
-│   └── services/           # Business logic
+├── backend/                 # FastAPI backend (as a submodule)
+│   ├── app/                # Application code
+│   │   ├── api/           # API routes
+│   │   ├── core/          # Core components
+│   │   ├── models/        # Data models
+│   │   └── services/      # Business logic
 ├── data/                   # Data storage
-├── frontend/               # React frontend
-│   ├── public/             # Static assets
-│   └── src/                # Source code
-│       ├── components/     # React components
-│       └── services/       # API services
-├── elastic_dict.py         # Core elastic dictionary implementation
-├── example.py              # Basic usage examples
-├── advanced_example.py     # Advanced usage examples
-├── example_visualizations.py # Visualization examples
-└── run_api.py              # Script to run the FastAPI application
+├── frontend/              # React frontend
+│   ├── public/            # Static assets
+│   └── src/               # Source code
+│       ├── components/    # React components
+│       └── services/      # API services
+└── README.md             # Project documentation
 ```
 
 ## Installation
@@ -66,19 +62,34 @@ elastic-dict/
 - Python 3.8+
 - Node.js 14+
 - npm or yarn
+- Git (for submodule management)
 
 ### Backend Setup
 
-1. Install the required Python packages:
+1. Clone the repository with submodules:
 
 ```bash
+git clone --recursive https://github.com/yourusername/elastic-dict.git
+cd elastic-dict
+```
+
+2. If you already cloned without submodules:
+
+```bash
+git submodule update --init --recursive
+```
+
+3. Set up the backend:
+
+```bash
+cd backend
 pip install -r requirements.txt
 ```
 
-2. Run the FastAPI backend:
+4. Run the FastAPI backend:
 
 ```bash
-python run_api.py
+python elastic_dict.py
 ```
 
 The API will be available at http://localhost:8000.
@@ -165,49 +176,27 @@ fig = ed.visualize_interactive()
 fig.write_html("visualization.html")
 ```
 
-## API Documentation
+## Documentation
 
-Once the backend is running, you can access the API documentation at http://localhost:8000/docs.
+- [Backend Documentation](backend/README.md)
+- [Frontend Documentation](frontend/README.md)
+- [Visualization Guide](docs/visualization.md)
+- [API Documentation](http://localhost:8000/docs) (when backend is running)
 
-## How It Works
+## Contributing
 
-The Elastic Dictionary uses a combination of:
-1. **Sentence Transformers**: To generate embeddings that capture semantic meaning
-2. **Cosine Similarity**: To measure semantic relatedness between items
-3. **Hierarchical Structure**: To organize items in a tree based on similarity
-4. **Adaptive Algorithms**: To restructure the tree as needed for optimal organization
-
-### Key Components
-
-1. **Backend (FastAPI)**:
-   - RESTful API for dictionary operations
-   - Singleton service pattern for dictionary management
-   - Persistent storage of dictionary state
-
-2. **Frontend (React)**:
-   - 3D force-directed graph visualization using Three.js
-   - Intuitive forms for adding content
-   - Semantic search interface
-   - Settings panel for dictionary management
-
-## Visualization Features
-
-- **Node Representation**: 
-  - Categories shown as spheres
-  - Items shown as cubes
-  - Size indicates importance in the hierarchy
-  - Color indicates depth in the tree
-
-- **Labels**: 
-  - Always visible node labels
-  - Automatic truncation for long text
-  - Special handling for paragraphs (first word + "...")
-
-- **Interaction**:
-  - Click nodes to see details
-  - Rotate, zoom, and pan the 3D view
-  - Hover for additional information
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Thanks to all contributors who have helped shape this project
+- Built with FastAPI, React, and Three.js
+- Powered by sentence-transformers for semantic analysis 
