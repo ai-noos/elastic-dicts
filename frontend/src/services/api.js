@@ -1,6 +1,15 @@
 import axios from 'axios';
 
-const API_URL = '/api/v1';
+// Get the environment-specific API URL
+const API_URL = import.meta.env.VITE_API_URL;
+
+// Log the current environment and API URL
+console.log('Environment:', import.meta.env.MODE);
+console.log('API URL:', API_URL);
+
+if (!API_URL) {
+  console.error('API URL not configured for current environment!');
+}
 
 const api = axios.create({
   baseURL: API_URL,
