@@ -5,6 +5,7 @@ import SearchForm from './components/SearchForm';
 import Settings from './components/Settings';
 import Documentation from './components/Documentation';
 import { dictionaryApi } from './services/api';
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import {
   PlusCircle,
   Search,
@@ -240,6 +241,7 @@ function App() {
             </a>
             <span className="text-gray-400">© {new Date().getFullYear()}</span>
           </div>
+          <SpeedInsights />
         </div>
       </footer>
     </div>
