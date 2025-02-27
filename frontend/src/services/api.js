@@ -11,11 +11,28 @@ if (!API_URL) {
   console.error('API URL not configured for current environment!');
 }
 
+// Function to get or create a user ID
+const getUserId = () => {
+  let userId = localStorage.getItem('userId');
+  if (!userId) {
+    // Generate a random user ID if none exists
+    userId = 'user_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('userId', userId);
+  }
+  return userId;
+};
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+// Add user ID to every request
+api.interceptors.request.use((config) => {
+  config.headers['X-User-ID'] = getUserId();
+  return config;
 });
 
 export const dictionaryApi = {
