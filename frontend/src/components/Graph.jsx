@@ -136,7 +136,7 @@ const Graph = ({ graphData, onNodeClick }) => {
           nodeLabel="name"
           nodeColor={node => node.color}
           nodeVal={node => node.val}
-          nodeThreeObject={node => {
+          nodeThreeObject={(node) => {
             // Create a group to hold both the node geometry and the label
             const group = new THREE.Group();
             
