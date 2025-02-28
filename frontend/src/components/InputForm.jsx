@@ -12,29 +12,34 @@ const InputForm = ({ onAddItem, onAddParagraph, isLoading }) => {
   const [inputValue, setInputValue] = useState('');
   const [batchItems, setBatchItems] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (inputType === 'item') {
-      if (inputValue.trim()) {
-        onAddItem(inputValue.trim());
-        setInputValue('');
+    try {
+      if (inputType === 'item') {
+        if (inputValue.trim()) {
+          await onAddItem(inputValue.trim());
+          setInputValue('');
+        }
+      } else if (inputType === 'batch') {
+        const items = batchItems
+          .split('\n')
+          .map(item => item.trim())
+          .filter(item => item.length > 0);
+        
+        if (items.length > 0) {
+          await onAddItem(items);
+          setBatchItems('');
+        }
+      } else if (inputType === 'paragraph') {
+        if (inputValue.trim()) {
+          await onAddParagraph(inputValue.trim());
+          setInputValue('');
+        }
       }
-    } else if (inputType === 'batch') {
-      const items = batchItems
-        .split('\n')
-        .map(item => item.trim())
-        .filter(item => item.length > 0);
-      
-      if (items.length > 0) {
-        onAddItem(items);
-        setBatchItems('');
-      }
-    } else if (inputType === 'paragraph') {
-      if (inputValue.trim()) {
-        onAddParagraph(inputValue.trim());
-        setInputValue('');
-      }
+    } catch (error) {
+      console.error('Error in form submission:', error);
+      // Error handling is done at the App level
     }
   };
 

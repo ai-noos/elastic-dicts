@@ -61,7 +61,7 @@ export const dictionaryApi = {
   // Add multiple items to the dictionary
   addBatch: async (items) => {
     try {
-      const response = await api.post('/dictionary/add-batch', { items });
+      const response = await api.post('/dictionary/add-batch', { items: items });
       return response.data;
     } catch (error) {
       console.error('Error adding batch:', error);

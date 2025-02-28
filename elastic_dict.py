@@ -151,7 +151,15 @@ class ElasticDictionary:
     
     def add_batch(self, items: List[str]) -> List[Node]:
         """Add multiple items at once."""
-        return [self.add(item) for item in tqdm(items, desc="Adding items")]
+        nodes = []
+        for item in items:
+            try:
+                node = self.add(item)
+                nodes.append(node)
+            except Exception as e:
+                print(f"Error adding item '{item}': {str(e)}")
+                continue
+        return nodes
     
     def add_paragraph(self, paragraph: str) -> List[Node]:
         """
